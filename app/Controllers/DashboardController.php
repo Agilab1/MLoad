@@ -12,7 +12,7 @@ class DashboardController extends BaseController
      */
     private function updateMachineStatus()
     {
-        $loadingModel = new MachineLoadingModel();
+        $loadingModel = new MachineLoadingModel();//comment
         $machineModel = new MachineModel();
 
         /*
