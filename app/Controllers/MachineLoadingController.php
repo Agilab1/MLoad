@@ -22,33 +22,53 @@ class MachineLoadingController extends BaseController
         $loadingModel = new MachineLoadingModel();
 
         $machineId = $this->request->getPost('machine_id');
-        $qty = $this->request->getPost('qty');
+        $qty       = $this->request->getPost('qty');
 
-        $start = date('Y-m-d H:i:s');
+        $lastJob = $loadingModel
+            ->where('machine_id', $machineId)
+            ->orderBy('end_datetime', 'DESC')
+            ->first();
 
-        // Demo logic
-        $minutes = $qty * 20;
+        if ($lastJob) {
+
+            if (strtotime($lastJob['end_datetime']) > time()) {
+
+                $start  = $lastJob['end_datetime'];
+                $status = 'Pending';
+            } else {
+
+                $start  = date('Y-m-d H:i:s');
+                $status = 'Running';
+
+                $machineModel->update($machineId, [
+                    'status' => 'BUSY'
+                ]);
+            }
+        } else {
+
+            $start  = date('Y-m-d H:i:s');
+            $status = 'Running';
+
+            $machineModel->update($machineId, [
+                'status' => 'BUSY'
+            ]);
+        }
+
 
         $end = date(
             'Y-m-d H:i:s',
-            strtotime("+{$minutes} minutes")
+            strtotime($start . ' +8 hours')
         );
 
         $loadingModel->insert([
-            'machine_id' => $machineId,
-            'order_id' => null,
-            'qty' => $qty,
-            'start_datetime' => $start,
-            'end_datetime' => $end,
-            'status' => 'Running'
-        ]);
 
-        $machineModel->update(
-            $machineId,
-            [
-                'status' => 'BUSY'
-            ]
-        );
+            'machine_id'     => $machineId,
+            'qty'            => $qty,
+            'start_datetime' => $start,
+            'end_datetime'   => $end,
+            'status'         => $status
+
+        ]);
 
         return redirect()->to('/');
     }

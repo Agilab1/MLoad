@@ -178,7 +178,20 @@
 
                                 <td><?= $machine['available_time'] ?? 'Available Now' ?></td>
 
-                                <td><?= $machine['remaining_time'] ?? '-' ?></td>
+                                <td>
+                                    <?php if ($machine['status'] == 'BUSY'): ?>
+
+                                        <span class="remaining"
+                                            data-seconds="<?= $machine['remaining_seconds'] ?>">
+                                            <?= $machine['remaining_time'] ?>
+                                        </span>
+
+                                    <?php else: ?>
+
+                                        -
+
+                                    <?php endif; ?>
+                                </td>
 
                             </tr>
 
@@ -200,6 +213,61 @@
 
         </div>
 
+    </div>
+    <div class="card shadow mb-4">
+        <div class="card-header">
+            <h4>Add New Job</h4>
+        </div>
+
+        <div class="card-body">
+
+            <form action="<?= base_url('machine-loading/store') ?>" method="post">
+
+                <div class="row">
+
+                    <div class="col-md-5">
+
+                        <label>Machine</label>
+
+                        <select name="machine_id" class="form-control" required>
+
+                            <?php foreach ($machinesList as $machine): ?>
+
+                                <option value="<?= $machine['id'] ?>">
+                                    <?= esc($machine['machine_name']) ?>
+                                </option>
+
+                            <?php endforeach; ?>
+
+                        </select>
+
+                    </div>
+
+                    <div class="col-md-5">
+
+                        <label>Quantity</label>
+
+                        <input
+                            type="number"
+                            name="qty"
+                            class="form-control"
+                            required>
+
+                    </div>
+
+                    <div class="col-md-2 d-flex align-items-end">
+
+                        <button class="btn btn-primary w-100">
+                            Start Job
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </form>
+
+        </div>
     </div>
 
     <!-- Gantt Chart -->
@@ -302,6 +370,37 @@
                 `;
                 }
             });
+            setInterval(function() {
+
+                document.querySelectorAll(".remaining").forEach(function(el) {
+
+                    let sec = parseInt(el.dataset.seconds);
+
+                    if (sec > 0) {
+
+                        sec--;
+
+                        el.dataset.seconds = sec;
+
+                        let h = Math.floor(sec / 3600);
+                        let m = Math.floor((sec % 3600) / 60);
+                        let s = sec % 60;
+
+                        el.innerHTML =
+                            String(h).padStart(2, '0') + ":" +
+                            String(m).padStart(2, '0') + ":" +
+                            String(s).padStart(2, '0');
+
+                    } else {
+
+                        el.innerHTML = "00:00:00";
+
+                        location.reload();
+                    }
+
+                });
+
+            }, 1000);
 
         } catch (error) {
 
@@ -312,6 +411,39 @@
                 error.message +
                 '</div>';
         }
+        setInterval(function() {
+
+            document.querySelectorAll(".remaining").forEach(function(e) {
+
+                let sec = parseInt(e.dataset.sec);
+
+                if (sec > 0) {
+
+                    sec--;
+
+                    e.dataset.sec = sec;
+
+                    let h = Math.floor(sec / 3600);
+
+                    let m = Math.floor((sec % 3600) / 60);
+
+                    let s = sec % 60;
+
+                    e.innerHTML =
+
+                        String(h).padStart(2, '0') + ":"
+
+                        +
+                        String(m).padStart(2, '0') + ":"
+
+                        +
+                        String(s).padStart(2, '0');
+
+                }
+
+            });
+
+        }, 1000);
 
     });
 </script>

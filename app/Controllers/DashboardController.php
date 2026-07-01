@@ -7,64 +7,66 @@ use App\Models\MachineLoadingModel;
 
 class DashboardController extends BaseController
 {
-    /**
-     * Auto Update Job & Machine Status
-     */
+
     private function updateMachineStatus()
     {
-        $loadingModel = new MachineLoadingModel();//comment
+        $loadingModel = new MachineLoadingModel();
         $machineModel = new MachineModel();
 
-        /*
-    |--------------------------------------------------
-    | First Reset All Machines
-    |--------------------------------------------------
-    */
+        $now = time();
 
-        $db = \Config\Database::connect();
+        $machines = $machineModel->findAll();
 
-        $db->query("
-        UPDATE machines
-        SET status='FREE'
-    ");
+        foreach ($machines as $machine) {
 
-        /*
-    |--------------------------------------------------
-    | Update Job Status
-    |--------------------------------------------------
-    */
+            $machineId = $machine['id'];
+            $machineModel->update($machineId, [
+                'status' => 'FREE'
+            ]);
 
-        $jobs = $loadingModel->findAll();
+            $runningJob = $loadingModel
+                ->where('machine_id', $machineId)
+                ->where('status', 'Running')
+                ->first();
 
-        foreach ($jobs as $job) {
+            if ($runningJob) {
 
-            $now   = time();
-            $start = strtotime($job['start_datetime']);
-            $end   = strtotime($job['end_datetime']);
 
-            if ($now < $start) {
+                if ($now >= strtotime($runningJob['end_datetime'])) {
 
-                $loadingModel->update(
-                    $job['id'],
-                    ['status' => 'Pending']
-                );
-            } elseif ($now >= $start && $now <= $end) {
+                    $loadingModel->update($runningJob['id'], [
+                        'status' => 'Completed'
+                    ]);
+                } else {
 
-                $loadingModel->update(
-                    $job['id'],
-                    ['status' => 'Running']
-                );
 
-                $machineModel->update(
-                    $job['machine_id'],
-                    ['status' => 'BUSY']
-                );
-            } else {
+                    $machineModel->update($machineId, [
+                        'status' => 'BUSY'
+                    ]);
 
-                $loadingModel->update(
-                    $job['id'],
-                    ['status' => 'Completed']
-                );
+                    continue;
+                }
+            }
+
+
+            $pendingJob = $loadingModel
+                ->where('machine_id', $machineId)
+                ->where('status', 'Pending')
+                ->orderBy('start_datetime', 'ASC')
+                ->first();
+
+            if ($pendingJob) {
+
+                if ($now >= strtotime($pendingJob['start_datetime'])) {
+
+                    $loadingModel->update($pendingJob['id'], [
+                        'status' => 'Running'
+                    ]);
+
+                    $machineModel->update($machineId, [
+                        'status' => 'BUSY'
+                    ]);
+                }
             }
         }
     }
@@ -131,7 +133,7 @@ class DashboardController extends BaseController
         */
 
         $machines = $machineModel->findAll();
-
+        $data['machinesList'] = $machineModel->findAll();
         foreach ($machines as &$machine) {
 
             $runningJob = $loadingModel
@@ -154,18 +156,16 @@ class DashboardController extends BaseController
                     );
 
                 $remainingSeconds =
-                    strtotime($runningJob['end_datetime'])
-                    - time();
+                    strtotime($runningJob['end_datetime']) - time();
 
                 if ($remainingSeconds < 0) {
                     $remainingSeconds = 0;
                 }
 
-                $machine['remaining_time']
-                    = gmdate(
-                        'H:i:s',
-                        $remainingSeconds
-                    );
+                $machine['remaining_seconds'] = $remainingSeconds;
+
+                $machine['remaining_time'] =
+                    gmdate('H:i:s', $remainingSeconds);
             } else {
 
                 $machine['status'] = 'FREE';
